@@ -1,2 +1,2 @@
-# fai22-P2_building-miniai
+# build-miniai
 Rebuild miniai from fastai 2022 Part2

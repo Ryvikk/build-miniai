@@ -1,0 +1,9 @@
+project:
+  output-dir: _docs
+
+website:
+  title: "build-miniai"
+  site-url: "https://Ryvikk.github.io/build-miniai"
+  description: "Rebuild miniai from fasai 2022 Part2"
+  repo-branch: main
+  repo-url: "https://github.com/Ryvikk/build-miniai"

@@ -26,7 +26,7 @@ def set_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
 
-# %% ../nbs/10_activations.ipynb 38
+# %% ../nbs/10_activations.ipynb 39
 class Hook():
     def __init__(self, m, f): 
         self.hook = m.register_forward_hook(partial(f, self))
@@ -34,7 +34,7 @@ class Hook():
     def remove(self): self.hook.remove()
     def __del__(self): self.remove()
 
-# %% ../nbs/10_activations.ipynb 50
+# %% ../nbs/10_activations.ipynb 51
 class Hooks(list):
     def __init__(self, ms, f): super().__init__([Hook(m,f) for m in ms])
     def __enter__(self, *args): return self
@@ -46,15 +46,15 @@ class Hooks(list):
     def remove(self):
         for h in self: h.remove()
 
-# %% ../nbs/10_activations.ipynb 55
+# %% ../nbs/10_activations.ipynb 56
 class HooksCallback(Callback):
     def __init__(self, hookfunc, mod_filter=fc.noop): # mod_filters is a function that filters the modules to hook
         fc.store_attr()
         super().__init__()
     
     def before_fit(self):
-        mods = fc.filter_ex(self.learn.model.modules(), self.mod_filter)
-        self.hooks = Hooks(mods, self._hookfunc)
+        self.mods = fc.filter_ex(self.learn.model.modules(), self.mod_filter)
+        self.hooks = Hooks(self.mods, self._hookfunc)
     
     def _hookfunc(self, *args, **kwargs): # checks if training 
         if self.learn.model.training: self.hookfunc(*args, **kwargs)
@@ -63,7 +63,7 @@ class HooksCallback(Callback):
     def __iter__(self): return iter(self.hooks)
     def __len__(self): return len(self.hooks)
 
-# %% ../nbs/10_activations.ipynb 67
+# %% ../nbs/10_activations.ipynb 69
 def append_stats(hook, mod, inp, outp):
     if not hasattr(hook, 'stats'): hook.stats = ([],[],[])
     acts = to_cpu(outp)
@@ -71,15 +71,15 @@ def append_stats(hook, mod, inp, outp):
     hook.stats[1].append(acts.std())
     hook.stats[2].append(acts.abs().histc(40,0,10))
 
-# %% ../nbs/10_activations.ipynb 69
+# %% ../nbs/10_activations.ipynb 71
 def get_hist(h): return torch.stack(h.stats[2]).t().float().log1p()
 
-# %% ../nbs/10_activations.ipynb 75
+# %% ../nbs/10_activations.ipynb 77
 def get_min(h):
     h1 = torch.stack(h.stats[2]).t().float()
     return h1[0]/h1.sum(0)
 
-# %% ../nbs/10_activations.ipynb 79
+# %% ../nbs/10_activations.ipynb 81
 class ActivationStats(HooksCallback):
     def __init__(self, mod_filter=fc.noop): super().__init__(append_stats, mod_filter)
         

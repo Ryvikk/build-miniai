@@ -17,14 +17,7 @@ from .datasets import *
 from .learner import *
 
 # %% auto 0
-__all__ = ['set_seed', 'Hook', 'Hooks', 'HooksCallback', 'append_stats', 'get_hist', 'get_min', 'ActivationStats']
-
-# %% ../nbs/10_activations.ipynb 4
-def set_seed(seed):
-    torch.use_deterministic_algorithms(True)
-    torch.manual_seed(seed)
-    random.seed(seed)
-    np.random.seed(seed)
+__all__ = ['Hook', 'Hooks', 'append_stats', 'get_hist', 'get_min', 'set_seed', 'HooksCallback', 'ActivationStats']
 
 # %% ../nbs/10_activations.ipynb 39
 class Hook():
@@ -46,23 +39,6 @@ class Hooks(list):
     def remove(self):
         for h in self: h.remove()
 
-# %% ../nbs/10_activations.ipynb 56
-class HooksCallback(Callback):
-    def __init__(self, hookfunc, mod_filter=fc.noop): # mod_filters is a function that filters the modules to hook
-        fc.store_attr()
-        super().__init__()
-    
-    def before_fit(self):
-        self.mods = fc.filter_ex(self.learn.model.modules(), self.mod_filter)
-        self.hooks = Hooks(self.mods, self._hookfunc)
-    
-    def _hookfunc(self, *args, **kwargs): # checks if training 
-        if self.learn.model.training: self.hookfunc(*args, **kwargs)
-    
-    def after_fit(self): self.hooks.remove()
-    def __iter__(self): return iter(self.hooks)
-    def __len__(self): return len(self.hooks)
-
 # %% ../nbs/10_activations.ipynb 69
 def append_stats(hook, mod, inp, outp):
     if not hasattr(hook, 'stats'): hook.stats = ([],[],[])
@@ -79,7 +55,32 @@ def get_min(h):
     h1 = torch.stack(h.stats[2]).t().float()
     return h1[0]/h1.sum(0)
 
-# %% ../nbs/10_activations.ipynb 81
+# %% ../nbs/10_activations.ipynb 88
+def set_seed(seed, deterministic=False):
+    torch.use_deterministic_algorithms(deterministic)
+    torch.manual_seed(seed)
+    random.seed(seed)
+    np.random.seed(seed)
+
+# %% ../nbs/10_activations.ipynb 89
+class HooksCallback(Callback):
+    def __init__(self, hookfunc, mod_filter=fc.noop, on_train=True, on_valid=False, mods=None):
+        fc.store_attr()
+        super().__init__()
+    
+    def before_fit(self, learn):
+        if self.mods: mods=self.mods
+        else: mods = fc.filter_ex(learn.model.modules(), self.mod_filter)
+        self.hooks = Hooks(mods, partial(self._hookfunc, learn))
+
+    def _hookfunc(self, learn, *args, **kwargs):
+        if (self.on_train and learn.training) or (self.on_valid and not learn.training): self.hookfunc(*args, **kwargs)
+
+    def after_fit(self, learn): self.hooks.remove()
+    def __iter__(self): return iter(self.hooks)
+    def __len__(self): return len(self.hooks)
+
+# %% ../nbs/10_activations.ipynb 90
 class ActivationStats(HooksCallback):
     def __init__(self, mod_filter=fc.noop): super().__init__(append_stats, mod_filter)
         
